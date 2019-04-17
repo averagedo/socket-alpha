@@ -1,7 +1,7 @@
 #include<iostream>
 #include<stdio.h>
 #include<WinSock2.h>
-using namespace std;
+#include<thread>
 
 #pragma comment (lib,"ws2_32.lib")
 
@@ -33,51 +33,12 @@ int CompareHost(char * a)
 	return 0;
 }
 
-
-int main()
+int Process(SOCKET server)
 {
-	WSADATA SData;
-	int iResult = WSAStartup(MAKEWORD(2, 2), &SData);
-	if (iResult != 0)
-	{
-		cout << "Khong the khoi dong winsock";
-		return 1;
-	}
-
-	//khoi tao sock ket
-	SOCKET server = socket(AF_INET, SOCK_STREAM, 0);
-	sockaddr_in addr;
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = INADDR_ANY;	//IP cua mink
-	addr.sin_port = htons(1234);
-
-	//cho doi
-	int TBind = bind(server, (sockaddr*)&addr, sizeof(addr));
-	if (TBind == -1)
-	{
-		cout << "Loi thiet lap IP va Port." << endl;
-		WSAGetLastError();
-		closesocket(server);
-		return 1;
-	}
-
-	//lang nghe
-	int TListen = listen(server, 5);
-	if (TListen == -1)
-	{
-		cout << "Loi lang nghe." << endl;
-		WSAGetLastError();
-		closesocket(server);
-		return 1;
-	}
-
-	SOCKET CliPro;
-
-	sockaddr_in IP_CliPro;	//Luu dia chi va port cua server
-	char *BoDy;
-
 	while (1)
 	{
+		SOCKET CliPro;
+		sockaddr_in IP_CliPro;	//Luu dia chi va port cua server
 
 		char request_browser[1000];
 		char Host[300] = { 0 };
@@ -93,22 +54,22 @@ int main()
 
 		if (CliPro == -1)
 		{
-			cout << "Loi ket noi" << endl;
+			std::cout << "Loi ket noi" << std::endl;
 			return 1;
 		}
 		else
-			cout << "Ket noi thanh cong" << endl << endl;
+			std::cout << "Ket noi thanh cong" << std::endl << std::endl;
 
-		cout << "Nhan yeu cau:" << endl;
+		std::cout << "Nhan yeu cau:" << std::endl;
 
 		memset(request_browser, 0, sizeof(request_browser));	//set lai request
 		int v = recv(CliPro, request_browser, sizeof(request_browser), 0);
 		if (v >= 1000)
 		{
-			cout << "Thieuuuuuuuuuuuuuuuuuuuuuu?" << endl;
+			std::cout << "Thieuuuuuuuuuuuuuuuuuuuuuu?" << std::endl;
 			system("pause");
 		}
-		cout << request_browser << endl << endl;
+		std::cout << request_browser << std::endl << std::endl;
 
 		int i = CompareHost(request_browser);
 		if (i != 0)
@@ -121,7 +82,7 @@ int main()
 				i++;
 			}
 			Host[j - 1] = '\0';
-			cout << Host << endl;
+			std::cout << Host << std::endl;
 		}
 
 		//phan giai ten mien
@@ -130,7 +91,7 @@ int main()
 		ConnectPC = gethostbyname(Host);  // Lay PC theo Tên Domain
 
 		if (!ConnectPC) {
-			cout << "DNS khong the phan giai duoc ten mien nay ...\n";
+			std::cout << "DNS khong the phan giai duoc ten mien nay ...\n";
 			continue;
 		}
 
@@ -139,16 +100,16 @@ int main()
 
 		ConnectIP.sin_addr.s_addr = (*(DWORD*)ConnectPC->h_addr_list[0]); // Lay IP
 
-		cout << "May chu:";
-		cout << ConnectPC->h_name << "\n";
-		cout << "IP: " << inet_ntoa(ConnectIP.sin_addr) << "\n\n";
+		std::cout << "May chu:";
+		std::cout << ConnectPC->h_name << "\n";
+		std::cout << "IP: " << inet_ntoa(ConnectIP.sin_addr) << "\n\n";
 
 		//gui len server
 		//tao 1 socket khac
 		int TConnect = connect(ProSer, (sockaddr*)&ConnectIP, sizeof(ConnectIP));
 		if (TConnect == -1)
 		{
-			cout << "Loi ket noi proxy server" << endl;
+			std::cout << "Loi ket noi proxy server" << std::endl;
 			WSAGetLastError();
 			continue;
 			//system("pause");
@@ -186,11 +147,11 @@ int main()
 			int r = recv(ProSer, &c, 1, 0);
 			if (r < 0)
 			{
-				cout << "Loiiii !!!" << endl;
+				std::cout << "Loiiii !!!" << std::endl;
 				system("pause");
 			}
 			send(CliPro, &c, 1, 0);
-			cout << c;
+			std::cout << c;
 			if (c == '\n' || c == '\r')
 				dem++;
 			else
@@ -200,12 +161,13 @@ int main()
 		}
 
 		int m = 1;
+		char *BoDy;
 		do
 		{
 			m = recv(ProSer, body, sizeof(body), 0);
 			if (m == -1)
 			{
-				cout << "Nhan du lieu loi." << endl;
+				std::cout << "Nhan du lieu loi." << std::endl;
 				break;
 			}
 			BoDy = new char[m];
@@ -218,6 +180,55 @@ int main()
 		closesocket(ProSer);
 
 	}
+}
+
+int main()
+{
+	WSADATA SData;
+	int iResult = WSAStartup(MAKEWORD(2, 2), &SData);
+	if (iResult != 0)
+	{
+		std::cout << "Khong the khoi dong winsock";
+		return 1;
+	}
+
+	//khoi tao sock ket
+	SOCKET server = socket(AF_INET, SOCK_STREAM, 0);
+	sockaddr_in addr;
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = INADDR_ANY;	//IP cua mink
+	addr.sin_port = htons(1234);
+
+	//cho doi
+	int TBind = bind(server, (sockaddr*)&addr, sizeof(addr));
+	if (TBind == -1)
+	{
+		std::cout << "Loi thiet lap IP va Port." << std::endl;
+		WSAGetLastError();
+		closesocket(server);
+		return 1;
+	}
+
+	//lang nghe
+	int TListen = listen(server, 5);
+	if (TListen == -1)
+	{
+		std::cout << "Loi lang nghe." << std::endl;
+		WSAGetLastError();
+		closesocket(server);
+		return 1;
+	}
+
+	std::thread Thr1(Process, server);
+	std::thread Thr2(Process, server);
+	std::thread Thr3(Process, server);
+	std::thread Thr4(Process, server);
+	std::thread Thr5(Process, server);
+	Thr1.join();
+	Thr2.join();
+	Thr3.join();
+	Thr4.join();
+	Thr5.join();
 
 	WSACleanup();
 	system("pause");
