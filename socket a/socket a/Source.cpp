@@ -82,7 +82,7 @@ int main()
 		char request_browser[1000];
 		char Host[300] = { 0 };
 
-		char header[5000] = { 0 };
+		char header[3000] = { 0 };
 		char body[5000] = { 0 };
 		SOCKET ProSer = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -102,7 +102,12 @@ int main()
 		cout << "Nhan yeu cau:" << endl;
 
 		memset(request_browser, 0, sizeof(request_browser));	//set lai request
-		recv(CliPro, request_browser, sizeof(request_browser), 0);
+		int v = recv(CliPro, request_browser, sizeof(request_browser), 0);
+		if (v >= 1000)
+		{
+			cout << "Thieuuuuuuuuuuuuuuuuuuuuuu?" << endl;
+			system("pause");
+		}
 		cout << request_browser << endl << endl;
 
 		int i = CompareHost(request_browser);
@@ -145,9 +150,9 @@ int main()
 		{
 			cout << "Loi ket noi proxy server" << endl;
 			WSAGetLastError();
-			//continue;
-			system("pause");
-			return 1;
+			continue;
+			//system("pause");
+			//return 1;
 		}
 
 		for (int i = 0; request_browser[i] != '\0'; i++)
@@ -174,17 +179,27 @@ int main()
 		//Nhan du lieu
 		//Header
 		memset(header, 0, sizeof(header));
-		recv(ProSer, header, sizeof(header), 0);
+		char c;
+		int dem = 0;
+		while (1)
+		{
+			int r = recv(ProSer, &c, 1, 0);
+			if (r < 0)
+			{
+				cout << "Loiiii !!!" << endl;
+				system("pause");
+			}
+			send(CliPro, &c, 1, 0);
+			cout << c;
+			if (c == '\n' || c == '\r')
+				dem++;
+			else
+				dem = 0;
+			if (dem == 4)
+				break;
+		}
 
-
-
-		cout << header << endl;
-		char* BoDy;
-		//body
-		int m = 1, n = 0;
-
-		send(CliPro, header, sizeof(header), 0);
-
+		int m = 1;
 		do
 		{
 			m = recv(ProSer, body, sizeof(body), 0);
@@ -200,7 +215,7 @@ int main()
 		} while (m > 0);
 
 		closesocket(CliPro);
-		//closesocket(ProSer);
+		closesocket(ProSer);
 
 	}
 
