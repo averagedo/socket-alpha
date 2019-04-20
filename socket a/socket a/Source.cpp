@@ -1,6 +1,5 @@
 #include<iostream>
 #include<stdio.h>
-#include<string>
 #include<WinSock2.h>
 #include<thread>
 
@@ -44,44 +43,8 @@ int toInt(std::string a)
 	return tong;
 }
 
-
-int main()
+int Process(SOCKET server)
 {
-	WSADATA SData;
-	int iResult = WSAStartup(MAKEWORD(2, 2), &SData);
-	if (iResult != 0)
-	{
-		std::cout << "Khong the khoi dong winsock";
-		return 1;
-	}
-
-	//khoi tao sock ket
-	SOCKET server = socket(AF_INET, SOCK_STREAM, 0);
-	sockaddr_in addr;
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = INADDR_ANY;	//IP cua mink
-	addr.sin_port = htons(1234);
-
-	//cho doi
-	int TBind = bind(server, (sockaddr*)&addr, sizeof(addr));
-	if (TBind == -1)
-	{
-		std::cout << "Loi thiet lap IP va Port." << std::endl;
-		WSAGetLastError();
-		closesocket(server);
-		return 1;
-	}
-
-	//lang nghe
-	int TListen = listen(server, 5);
-	if (TListen == -1)
-	{
-		std::cout << "Loi lang nghe." << std::endl;
-		WSAGetLastError();
-		closesocket(server);
-		return 1;
-	}
-
 	while (1)
 	{
 		SOCKET CliPro;
@@ -90,7 +53,7 @@ int main()
 		char request_browser[1000] = { 0 };
 		char Host[300] = { 0 };
 
-		//char header[3000] = { 0 };
+		char header[3000] = { 0 };
 		char body[5000] = { 0 };
 		SOCKET ProSer = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -191,6 +154,7 @@ int main()
 		std::string tem;
 		int dem = 0;
 		int tong = 0;
+		int z = 0;
 		while (1)
 		{
 			int r = recv(ProSer, &c, 1, 0);
@@ -199,10 +163,11 @@ int main()
 				std::cout << "Loiiii !!!" << std::endl;
 				system("pause");
 			}
-			send(CliPro, &c, 1, 0);
+			header[z] = c;
 			std::cout << c;
 			tem.push_back(c);
 			tong++;
+			z++;
 			if (c == '\n' || c == '\r')
 				dem++;
 			else
@@ -210,6 +175,7 @@ int main()
 			if (dem == 4)
 				break;
 		}
+		send(CliPro, header, z, 0);
 		std::cout << "So byte co header:";
 		std::cout << tong << std::endl;
 
@@ -249,9 +215,112 @@ int main()
 		closesocket(CliPro);
 		closesocket(ProSer);
 	}
+}
+
+int main()
+{
+	WSADATA SData;
+	int iResult = WSAStartup(MAKEWORD(2, 2), &SData);
+	if (iResult != 0)
+	{
+		std::cout << "Khong the khoi dong winsock";
+		return 1;
+	}
+
+	//khoi tao sock ket
+	SOCKET server = socket(AF_INET, SOCK_STREAM, 0);
+	sockaddr_in addr;
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = INADDR_ANY;	//IP cua mink
+	addr.sin_port = htons(1234);
+
+	//cho doi
+	int TBind = bind(server, (sockaddr*)&addr, sizeof(addr));
+	if (TBind == -1)
+	{
+		std::cout << "Loi thiet lap IP va Port." << std::endl;
+		WSAGetLastError();
+		closesocket(server);
+		return 1;
+	}
+
+	//lang nghe
+	int TListen = listen(server, 5);
+	if (TListen == -1)
+	{
+		std::cout << "Loi lang nghe." << std::endl;
+		WSAGetLastError();
+		closesocket(server);
+		return 1;
+	}
+
+	std::thread Thr1(Process, server);
+	std::thread Thr2(Process, server);
+	std::thread Thr3(Process, server);
+	std::thread Thr4(Process, server);
+	std::thread Thr5(Process, server);
+	std::thread Thr6(Process, server);
+	std::thread Thr7(Process, server);
+	std::thread Thr8(Process, server);
+	std::thread Thr9(Process, server);
+	std::thread Thr10(Process, server);
+	std::thread Thr11(Process, server);
+	std::thread Thr12(Process, server);
+	std::thread Thr13(Process, server);
+	std::thread Thr14(Process, server);
+	std::thread Thr15(Process, server);
+	std::thread Thr16(Process, server);
+	std::thread Thr17(Process, server);
+	std::thread Thr18(Process, server);
+	std::thread Thr19(Process, server);
+	std::thread Thr20(Process, server);
+	std::thread Thr21(Process, server);
+	std::thread Thr22(Process, server);
+	std::thread Thr23(Process, server);
+	/*std::thread Thr24(Process, server);
+	std::thread Thr25(Process, server);
+	std::thread Thr26(Process, server);
+	std::thread Thr27(Process, server);
+	std::thread Thr28(Process, server);
+	std::thread Thr29(Process, server);
+	std::thread Thr30(Process, server);*/
+
+
+	Thr1.join();
+	Thr2.join();
+	Thr3.join();
+	Thr4.join();
+	Thr5.join();
+	Thr6.join();
+	Thr7.join();
+	Thr8.join();
+	Thr9.join();
+	Thr10.join();
+	Thr11.join();
+	Thr12.join();
+	Thr13.join();
+	Thr14.join();
+	Thr15.join();
+	Thr16.join();
+	Thr17.join();
+	Thr18.join();
+	Thr19.join();
+	Thr20.join();
+	Thr21.join();
+	Thr22.join();
+	Thr23.join();
+	/*Thr24.join();
+	Thr25.join();
+	Thr26.join();
+	Thr27.join();
+	Thr28.join();
+	Thr29.join();
+	Thr30.join();*/
+
 
 	WSACleanup();
 	system("pause");
+
 
 	return 0;
 
