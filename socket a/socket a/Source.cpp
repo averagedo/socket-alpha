@@ -130,7 +130,7 @@ void Process(SOCKET CliPro)
 	}
 
 	//Gui du lieu
-	send(ProSer, request_browser, sizeof(request_browser), 0);
+	send(ProSer, request_browser, v, 0);
 
 	//Nhan du lieu
 	//Header
@@ -199,17 +199,17 @@ void Process(SOCKET CliPro)
 	std::cout << tong << std::endl << std::endl;
 
 	closesocket(ProSer);
+	closesocket(CliPro);
 }
 
-
-int main()
+void main()
 {
 	WSADATA SData;
 	int iResult = WSAStartup(MAKEWORD(2, 2), &SData);
 	if (iResult != 0)
 	{
 		std::cout << "Khong the khoi dong winsock";
-		return 1;
+		return;
 	}
 
 	//khoi tao sock ket
@@ -226,7 +226,7 @@ int main()
 		std::cout << "Loi thiet lap IP va Port." << std::endl;
 		WSAGetLastError();
 		closesocket(server);
-		return 1;
+		return;
 	}
 
 	//lang nghe
@@ -236,7 +236,7 @@ int main()
 		std::cout << "Loi lang nghe." << std::endl;
 		WSAGetLastError();
 		closesocket(server);
-		return 1;
+		return;
 	}
 
 	while (1)
@@ -252,21 +252,18 @@ int main()
 		if (CliPro == -1)
 		{
 			std::cout << "Loi ket noi" << std::endl;
-			return 1;
+			return;
 		}
 		else
 			std::cout << "Ket noi thanh cong" << std::endl << std::endl;
 
 		std::thread Thr1(Process, CliPro);
+		Thr1.detach();
 
-		Thr1.join();
-
-		closesocket(CliPro);
 	}
 
 	WSACleanup();
 	system("pause");
 
-	return 0;
-
+	return;
 }
