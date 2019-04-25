@@ -44,7 +44,7 @@ int toInt(std::string a)
 	return tong;
 }
 
-void Process(SOCKET CliPro)
+int process(SOCKET CliPro)
 {
 	char request_browser[1000] = { 0 };
 	char Host[300] = { 0 };
@@ -53,15 +53,17 @@ void Process(SOCKET CliPro)
 	char body[5000] = { 0 };
 	SOCKET ProSer = socket(AF_INET, SOCK_STREAM, 0);
 
-	std::cout << "Nhan yeu cau:" << std::endl;
-
 	memset(request_browser, 0, sizeof(request_browser));	//set lai request
 	int v = recv(CliPro, request_browser, sizeof(request_browser), 0);
 	if (v >= 1000)
 	{
 		std::cout << "Thieuuuuuuuuuuuuuuuuuuuuuu?" << std::endl;
-		system("pause");
-		return;
+		return 1;
+	}
+	if (v <= 0)
+	{
+		std::cout << "Nhan am or == 0??" << std::endl;
+		return 1;
 	}
 	std::cout << request_browser << std::endl << std::endl;
 
@@ -86,8 +88,7 @@ void Process(SOCKET CliPro)
 
 	if (!ConnectPC) {
 		std::cout << "DNS khong the phan giai duoc ten mien nay ...\n";
-		//continue;
-		return;
+		return 1;
 	}
 
 	ConnectIP.sin_family = AF_INET;
@@ -104,11 +105,11 @@ void Process(SOCKET CliPro)
 	int TConnect = connect(ProSer, (sockaddr*)&ConnectIP, sizeof(ConnectIP));
 	if (TConnect == -1)
 	{
-		std::cout << "Loi ket noi proxy server" << std::endl << std::endl;
+		std::cout << "Loi ket noi proxy server" << std::endl;
 		WSAGetLastError();
-		//continue;
+		return 1;
 		//system("pause");
-		return;
+		//return 1;
 	}
 
 	for (int i = 0; request_browser[i] != '\0'; i++)
@@ -146,7 +147,7 @@ void Process(SOCKET CliPro)
 		if (r < 0)
 		{
 			std::cout << "Loiiii !!!" << std::endl;
-			return;
+			break;
 		}
 		header[z] = c;
 		std::cout << c;
@@ -160,7 +161,6 @@ void Process(SOCKET CliPro)
 		if (dem == 4)
 			break;
 	}
-
 	send(CliPro, header, z, 0);
 	std::cout << "So byte co header:";
 	std::cout << tong << std::endl;
@@ -169,12 +169,16 @@ void Process(SOCKET CliPro)
 	std::size_t found = tem.find(Cont);
 	std::string so;
 	int j = 0;
-	while (tem[found + Cont.length() + j] != '\r')
+	int conLength = 0;
+	if (found != 0)
 	{
-		so.push_back(tem[found + Cont.length() + j]);
-		j++;
+		while (tem[found + Cont.length() + j] != '\r')
+		{
+			so.push_back(tem[found + Cont.length() + j]);
+			j++;
+		}
+		conLength = toInt(so);
 	}
-	int conLength = toInt(so);
 
 	int m = 1;
 	tong = 0;
@@ -185,7 +189,7 @@ void Process(SOCKET CliPro)
 		if (m == -1)
 		{
 			std::cout << "Nhan du lieu loi." << std::endl;
-			return;
+			break;
 		}
 		tong += m;
 		BoDy = new char[m];
@@ -198,18 +202,18 @@ void Process(SOCKET CliPro)
 	std::cout << "So byte co body: ";
 	std::cout << tong << std::endl << std::endl;
 
-	closesocket(ProSer);
 	closesocket(CliPro);
+	closesocket(ProSer);
 }
 
-void main()
+int main()
 {
 	WSADATA SData;
 	int iResult = WSAStartup(MAKEWORD(2, 2), &SData);
 	if (iResult != 0)
 	{
 		std::cout << "Khong the khoi dong winsock";
-		return;
+		return 1;
 	}
 
 	//khoi tao sock ket
@@ -226,7 +230,7 @@ void main()
 		std::cout << "Loi thiet lap IP va Port." << std::endl;
 		WSAGetLastError();
 		closesocket(server);
-		return;
+		return 1;
 	}
 
 	//lang nghe
@@ -236,7 +240,7 @@ void main()
 		std::cout << "Loi lang nghe." << std::endl;
 		WSAGetLastError();
 		closesocket(server);
-		return;
+		return 1;
 	}
 
 	while (1)
@@ -252,18 +256,21 @@ void main()
 		if (CliPro == -1)
 		{
 			std::cout << "Loi ket noi" << std::endl;
-			return;
+			return 1;
 		}
 		else
 			std::cout << "Ket noi thanh cong" << std::endl << std::endl;
 
-		std::thread Thr1(Process, CliPro);
-		Thr1.detach();
+		std::cout << "Nhan yeu cau:" << std::endl;
+
+		std::thread Thr(process, CliPro);
+		Thr.detach();
 
 	}
 
 	WSACleanup();
 	system("pause");
 
-	return;
+	return 0;
+
 }
