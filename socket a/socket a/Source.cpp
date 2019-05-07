@@ -1,10 +1,23 @@
+
+
 #include<iostream>
-#include<stdio.h>
-#include<string>
 #include<WinSock2.h>
+#include<WS2tcpip.h>
 #include<thread>
 
-#pragma comment (lib,"ws2_32.lib")
+#pragma comment(lib,"Ws2_32.lib")
+
+#define DEFAULT_BUFLEN 1024
+
+int toInt(std::string a)
+{
+	int tong = 0;
+	for (int i = 0; i < a.length(); i++)
+	{
+		tong = tong * 10 + (int)(a[i] - 48);
+	}
+	return tong;
+}
 
 int CompareHost(char * a)
 {
@@ -34,122 +47,168 @@ int CompareHost(char * a)
 	return 0;
 }
 
-int toInt(std::string a)
+int BlockConnect(char a[])
 {
-	int tong = 0;
-	for (int i = 0; i < a.length(); i++)
+	for (int i = 0; i < 4; i++)
 	{
-		tong = tong * 10 + (int)(a[i] - 48);
+		if (a[i] == 'C' && a[i + 1] == 'O' && a[i + 2] == 'N')
+			return 1;
 	}
-	return tong;
+	return 0;
 }
 
-int process(SOCKET CliPro)
+int process(SOCKET ClientSocket)
 {
-	char request_browser[1000] = { 0 };
+	char recvbuf[DEFAULT_BUFLEN] = { 0 };
+	int recvbuflen = DEFAULT_BUFLEN;
 	char Host[300] = { 0 };
+	char Header[1000] = { 0 };
+	char Body[5000] = { 0 };
 
-	char header[3000] = { 0 };
-	char body[5000] = { 0 };
-	SOCKET ProSer = socket(AF_INET, SOCK_STREAM, 0);
+	int iResult;
 
-	memset(request_browser, 0, sizeof(request_browser));	//set lai request
-	int v = recv(CliPro, request_browser, sizeof(request_browser), 0);
-	if (v >= 1000)
+	addrinfo *result, hints;
+
+	memset(recvbuf, 0, recvbuflen);
+	int byteRecv;
+	byteRecv = recv(ClientSocket, recvbuf, recvbuflen, 0);
+	if (byteRecv > 0)
 	{
-		std::cout << "Thieuuuuuuuuuuuuuuuuuuuuuu?" << std::endl;
+		printf("Bytes received: %d\n", byteRecv);
+		std::cout << recvbuf << std::endl;
+	}
+	else if (byteRecv == 0)
+	{
+		printf("Connection closing...\n");
 		return 1;
 	}
-	if (v <= 0)
-	{
-		std::cout << "Nhan am or == 0??" << std::endl;
+	else {
+		printf("recv failed with error: %d\n", WSAGetLastError());
+		closesocket(ClientSocket);
+		WSACleanup();
+		system("pause");
 		return 1;
 	}
-	std::cout << request_browser << std::endl << std::endl;
 
-	int i = CompareHost(request_browser);
+	int i = CompareHost(recvbuf);
 	if (i != 0)
 	{
 		int j = 0;
-		while (request_browser[i] != '\r' && request_browser[i] != ':')
+		while (recvbuf[i] != '\r' && recvbuf[i] != ':')
 		{
-			Host[j] = request_browser[i + 1];
+			Host[j] = recvbuf[i + 1];
 			j++;
 			i++;
 		}
 		Host[j - 1] = '\0';
-		std::cout << Host << std::endl;
+		std::cout << "Host: " << Host << std::endl << std::endl;
 	}
 
-	//phan giai ten mien
-	sockaddr_in ConnectIP;
-	hostent *ConnectPC = NULL;
-	ConnectPC = gethostbyname(Host);  // Lay PC theo Tên Domain
-
-	if (!ConnectPC) {
-		std::cout << "DNS khong the phan giai duoc ten mien nay ...\n";
+	// shutdown the connection since we're done
+	iResult = shutdown(ClientSocket, SD_RECEIVE);
+	if (iResult == SOCKET_ERROR) {
+		printf("shutdown failed with error: %d\n", WSAGetLastError());
+		closesocket(ClientSocket);
+		system("pause");
+		WSACleanup();
 		return 1;
 	}
 
-	ConnectIP.sin_family = AF_INET;
-	ConnectIP.sin_port = htons(80);
+	ZeroMemory(&hints, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
 
-	ConnectIP.sin_addr.s_addr = (*(DWORD*)ConnectPC->h_addr_list[0]); // Lay IP
-
-	std::cout << "May chu:";
-	std::cout << ConnectPC->h_name << "\n";
-	std::cout << "IP: " << inet_ntoa(ConnectIP.sin_addr) << "\n\n";
-
-	//gui len server
-	//tao 1 socket khac
-	int TConnect = connect(ProSer, (sockaddr*)&ConnectIP, sizeof(ConnectIP));
-	if (TConnect == -1)
-	{
-		std::cout << "Loi ket noi proxy server" << std::endl;
-		WSAGetLastError();
+	// Resolve the server address and port
+	iResult = getaddrinfo(Host, "80", &hints, &result);
+	if (iResult != 0) {
+		printf("getaddrinfo failed with error: %d\n", iResult);
+		WSACleanup();
+		system("pause");
 		return 1;
+	}
+
+	SOCKET ConnectSocket;
+	ConnectSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+	if (ConnectSocket == INVALID_SOCKET) {
+		printf("socket failed with error: %ld\n", WSAGetLastError());
+		WSACleanup();
+		system("pause");
+		return 1;
+	}
+
+	// Connect to server.
+	iResult = connect(ConnectSocket, result->ai_addr, (int)result->ai_addrlen);
+	if (iResult == SOCKET_ERROR) {
+		closesocket(ConnectSocket);
+		ConnectSocket = INVALID_SOCKET;
+	}
+
+	freeaddrinfo(result);
+
+	if (ConnectSocket == INVALID_SOCKET) {
+		printf("Unable to connect to server!\n");
+		//WSACleanup();
 		//system("pause");
-		//return 1;
+		return 1;
 	}
 
-	for (int i = 0; request_browser[i] != '\0'; i++)
+	/*for (int i = 0; recvbuf[i] != '\0'; i++)
 	{
-		if (request_browser[i] == 'I' && request_browser[i + 1] == 'f')
+		if (recvbuf[i] == 'I' && recvbuf[i + 1] == 'f')
 		{
 			int j;
-			for (j = 0; request_browser[i + j] != '\n'; j++)
+			for (j = 0; recvbuf[i + j] != '\n'; j++)
 			{
 			}
 			int k = 0;
-			for (k = 0; request_browser[i + k + j + 1] != '\0'; k++)
+			for (k = 0; recvbuf[i + k + j + 1] != '\0'; k++)
 			{
-				request_browser[i + k] = request_browser[i + k + j + 1];
+				recvbuf[i + k] = recvbuf[i + k + j + 1];
 			}
-			request_browser[i + k] = '\0';
+			recvbuf[i + k] = '\0';
 			i--;
 		}
+	}*/
+
+	iResult = send(ConnectSocket, recvbuf, byteRecv, 0);
+	if (iResult == SOCKET_ERROR) {
+		printf("send failed with error: %d\n", WSAGetLastError());
+		closesocket(ConnectSocket);
+		WSACleanup();
+		system("pause");
+		return 1;
 	}
 
-	//Gui du lieu
-	send(ProSer, request_browser, v, 0);
+	printf("Bytes Sent: %ld\n", iResult);
 
-	//Nhan du lieu
-	//Header
-	//memset(header, 0, sizeof(header));
+	// shutdown the connection since no more data will be sent
+	iResult = shutdown(ConnectSocket, SD_SEND);
+	if (iResult == SOCKET_ERROR) {
+		printf("shutdown failed with error: %d\n", WSAGetLastError());
+		closesocket(ConnectSocket);
+		WSACleanup();
+		system("pause");
+		return 1;
+	}
+
 	char c;
 	std::string tem;
 	int dem = 0;
 	int tong = 0;
 	int z = 0;
-	while (1)
+	memset(Header, 0, sizeof(Header));
+	int r;
+	do
 	{
-		int r = recv(ProSer, &c, 1, 0);
+		r = recv(ConnectSocket, &c, 1, 0);
 		if (r < 0)
 		{
 			std::cout << "Loiiii !!!" << std::endl;
-			break;
+			return 1;
 		}
-		header[z] = c;
+
+		Header[z] = c;
 		std::cout << c;
 		tem.push_back(c);
 		tong++;
@@ -160,8 +219,17 @@ int process(SOCKET CliPro)
 			dem = 0;
 		if (dem == 4)
 			break;
+	} while (r > 0);
+
+	iResult = send(ClientSocket, Header, z, 0);
+	if (iResult == SOCKET_ERROR) {
+		printf("send failed with error: %d\n", WSAGetLastError());
+		closesocket(ClientSocket);
+		system("pause");
+		WSACleanup();
+		return 1;
 	}
-	send(CliPro, header, z, 0);
+
 	std::cout << "So byte co header:";
 	std::cout << tong << std::endl;
 
@@ -170,7 +238,7 @@ int process(SOCKET CliPro)
 	std::string so;
 	int j = 0;
 	int conLength = 0;
-	if (found != 0)
+	if (found != tem.npos)
 	{
 		while (tem[found + Cont.length() + j] != '\r')
 		{
@@ -180,97 +248,129 @@ int process(SOCKET CliPro)
 		conLength = toInt(so);
 	}
 
-	int m = 1;
+	int m = 1, l;
 	tong = 0;
 	char *BoDy;
 	do
 	{
-		m = recv(ProSer, body, sizeof(body), 0);
-		if (m == -1)
-		{
-			std::cout << "Nhan du lieu loi." << std::endl;
-			break;
+		m = recv(ConnectSocket, Body, sizeof(Body), 0);
+		if (m == SOCKET_ERROR) {
+			printf("recv failed with error: %d\n", WSAGetLastError());
+			closesocket(ConnectSocket);
+			system("pause");
+			WSACleanup();
+			return 1;
 		}
 		tong += m;
 		BoDy = new char[m];
-		memmove(BoDy, body, m);
-		send(CliPro, BoDy, m, 0);
+		memmove(BoDy, Body, m);
+		l = send(ClientSocket, BoDy, m, 0);
+		if (l == SOCKET_ERROR) {
+			printf("send failed with error: %d\n", WSAGetLastError());
+			closesocket(ClientSocket);
+			system("pause");
+			WSACleanup();
+			return 1;
+		}
 		delete[] BoDy;
 		if (tong == conLength)
 			break;
+		/*if (m < 5000)
+			break;*/
 	} while (m > 0);
+
 	std::cout << "So byte co body: ";
 	std::cout << tong << std::endl << std::endl;
 
-	closesocket(CliPro);
-	closesocket(ProSer);
+	closesocket(ClientSocket);
+	closesocket(ConnectSocket);
 }
 
 int main()
 {
-	WSADATA SData;
-	int iResult = WSAStartup(MAKEWORD(2, 2), &SData);
+	WSADATA wsaDATA;
+
+	SOCKET ListenSocket = INVALID_SOCKET;
+	SOCKET ClientSocket = INVALID_SOCKET;
+
+	addrinfo *result = NULL;
+	addrinfo hints;
+
+	int iResult;
+	//Khoi tao winsock
+	iResult = WSAStartup(MAKEWORD(2, 2), &wsaDATA);
 	if (iResult != 0)
 	{
-		std::cout << "Khong the khoi dong winsock";
+		printf("WSAStartup failed: %d\n", iResult);
 		return 1;
 	}
 
-	//khoi tao sock ket
-	SOCKET server = socket(AF_INET, SOCK_STREAM, 0);
-	sockaddr_in addr;
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = INADDR_ANY;	//IP cua mink
-	addr.sin_port = htons(1234);
+	ZeroMemory(&hints, sizeof(hints));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
+	hints.ai_flags = AI_PASSIVE;
 
-	//cho doi
-	int TBind = bind(server, (sockaddr*)&addr, sizeof(addr));
-	if (TBind == -1)
-	{
-		std::cout << "Loi thiet lap IP va Port." << std::endl;
-		WSAGetLastError();
-		closesocket(server);
+	// Resolve the server address and port
+	iResult = getaddrinfo(NULL, "8888", &hints, &result);
+	if (iResult != 0) {
+		printf("getaddrinfo failed with error: %d\n", iResult);
+		WSACleanup();
 		return 1;
 	}
 
-	//lang nghe
-	int TListen = listen(server, 5);
-	if (TListen == -1)
-	{
-		std::cout << "Loi lang nghe." << std::endl;
-		WSAGetLastError();
-		closesocket(server);
+	// Create a SOCKET for connecting to server
+	ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+	if (ListenSocket == INVALID_SOCKET) {
+		printf("socket failed with error: %ld\n", WSAGetLastError());
+		freeaddrinfo(result);
+		WSACleanup();
+		return 1;
+	}
+
+	// Setup the TCP listening socket
+	iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+	if (iResult == SOCKET_ERROR) {
+		printf("bind failed with error: %d\n", WSAGetLastError());
+		freeaddrinfo(result);
+		closesocket(ListenSocket);
+		WSACleanup();
+		return 1;
+	}
+
+	freeaddrinfo(result);
+
+	iResult = listen(ListenSocket, SOMAXCONN);
+	if (iResult == SOCKET_ERROR) {
+		printf("listen failed with error: %d\n", WSAGetLastError());
+		closesocket(ListenSocket);
+		WSACleanup();
 		return 1;
 	}
 
 	while (1)
 	{
-		SOCKET CliPro;
-		sockaddr_in IP_CliPro;	//Luu dia chi va port cua server
-
-		//Chap nhap ket noi
-		int ip_CliPro;
-		ip_CliPro = sizeof(IP_CliPro);
-		CliPro = accept(server, (sockaddr*)&IP_CliPro, &ip_CliPro);
-
-		if (CliPro == -1)
-		{
-			std::cout << "Loi ket noi" << std::endl;
+		// Accept a client socket
+		ClientSocket = accept(ListenSocket, NULL, NULL);
+		if (ClientSocket == INVALID_SOCKET) {
+			printf("accept failed with error: %d\n", WSAGetLastError());
+			closesocket(ListenSocket);
+			WSACleanup();
+			system("pause");
 			return 1;
 		}
-		else
-			std::cout << "Ket noi thanh cong" << std::endl << std::endl;
 
-		std::cout << "Nhan yeu cau:" << std::endl;
+		process(ClientSocket);
+		//std::thread Thr(process, ClientSocket);
+		//Thr.detach();
 
-		std::thread Thr(process, CliPro);
-		Thr.detach();
-
+		//Sleep(10);
 	}
-
-	WSACleanup();
+	// cleanup
 	system("pause");
 
-	return 0;
+	closesocket(ClientSocket);
+	WSACleanup();
 
+	return 0;
 }
